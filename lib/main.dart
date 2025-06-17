@@ -1,24 +1,41 @@
-import 'package:feature_discovery/feature_discovery.dart';
+import 'package:feature_discovery_fork/feature_discovery.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:openwrt_manager/ThemeChangeNotifier.dart';
+import 'package:openwrt_manager/settingsUtil.dart';
+import 'package:provider/provider.dart';
 import 'Page/mainPage.dart';
 
-void main() => runApp(MyApp());
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SettingsUtil.loadAppSettings().then((x) {
+    runApp(
+      ChangeNotifierProvider<ThemeChangeNotifier>(
+        create: (BuildContext context) => ThemeChangeNotifier(),
+        child: MyApp(),
+      ),
+    );
+  });
+}
 
-class MyApp extends StatelessWidget {  
+class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.portraitDown,
-      ]);
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
     return FeatureDiscovery(
       child: MaterialApp(
-        title: 'OpenWRT Manager',
-        theme: ThemeData(        
-          primarySwatch: Colors.blue,
-        ),
+        title: 'OpenWrt Manager',
+        theme: Provider.of<ThemeChangeNotifier>(context, listen: true).currentTheme,
         home: MainPage(),
+        builder: (context, child) {          
+          return MediaQuery(
+            child: child!,
+            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(1)),
+          );
+        },
       ),
     );
   }

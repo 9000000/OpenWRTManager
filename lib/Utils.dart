@@ -1,7 +1,9 @@
 import 'dart:math';
 
-class Utils
-{
+class Utils {
+  static const String NoSpeedCalculationText = "----- KB/s";
+  static const bool ReleaseMode = bool.fromEnvironment('dart.vm.product', defaultValue: false);
+
   static String formatDuration(Duration d) {
     var seconds = d.inSeconds;
     final days = seconds ~/ Duration.secondsPerDay;
@@ -28,11 +30,9 @@ class Utils
 
   static String formatBytes(int bytes, {int decimals = 0}) {
     if (bytes <= 0) return "0 B";
-    const suffixes = ["B", "Kb", "Mb", "Gb", "Tb", "Pb"];
+    const suffixes = ["B", "KB", "MB", "GB", "TB", "PB"];
     var i = (log(bytes) / log(1024)).floor();
     var number = (bytes / pow(1024, i));
-    return (number).toStringAsFixed(number.truncateToDouble() == number ? 0 : decimals) +
-        ' ' +
-        suffixes[i];
+    return (number).toStringAsFixed(number.truncateToDouble() == number ? 0 : decimals) + ' ' + suffixes[i];
   }
 }

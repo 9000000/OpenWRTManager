@@ -1,14 +1,15 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')
 if (localPropertiesFile.exists()) {
     localPropertiesFile.withReader('UTF-8') { reader ->
         localProperties.load(reader)
     }
-}
-
-def flutterRoot = localProperties.getProperty('flutter.sdk')
-if (flutterRoot == null) {
-    throw new GradleException("Flutter SDK not found. Define location with flutter.sdk in the local.properties file.")
 }
 
 def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
@@ -21,22 +22,27 @@ if (flutterVersionName == null) {
     flutterVersionName = '0.95'
 }
 
-apply plugin: 'com.android.application'
-apply plugin: 'kotlin-android'
-apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
-
-android {
-    compileSdkVersion 28    
+android {    
+    namespace 'com.hg.openwrtmanager'
+    compileSdkVersion 35
     def keystoreProperties = new Properties()
     def keystorePropertiesFile = rootProject.file('key.properties')
     
-    keystoreProperties.setProperty('storePassword', System.getenv('OPENWRT_MANAGER_KEY_STORE_PASSWORD'));
-    keystoreProperties.setProperty('keyPassword', System.getenv('OPENWRT_MANAGER_KEY_PASSWORD'));
-    keystoreProperties.setProperty('keyAlias', System.getenv('OPENWRT_MANAGER_ALIAS'));
-    keystoreProperties.setProperty('storeFile', System.getenv('OPENWRT_MANAGER_KEY_PATH'));
+    keystoreProperties.setProperty('storePassword', System.getenv('OPENWRT_MANAGER_KEY_STORE_PASSWORD') ?: "");
+    keystoreProperties.setProperty('keyPassword', System.getenv('OPENWRT_MANAGER_KEY_PASSWORD') ?: "");
+    keystoreProperties.setProperty('keyAlias', System.getenv('OPENWRT_MANAGER_ALIAS') ?: "");
+    keystoreProperties.setProperty('storeFile', System.getenv('OPENWRT_MANAGER_KEY_PATH') ?: "");
 
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = "17"
     }
 
     lintOptions {
@@ -45,8 +51,8 @@ android {
 
     defaultConfig {        
         applicationId "com.hg.openwrtmanager"
-        minSdkVersion 16
-        targetSdkVersion 28
+        minSdkVersion flutter.minSdkVersion
+        targetSdkVersion 35
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -73,7 +79,7 @@ flutter {
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.7.10"
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test:runner:1.1.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.1'

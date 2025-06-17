@@ -1,33 +1,38 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:openwrt_manager/Dialog/Dialogs.dart';
 import 'package:openwrt_manager/Model/device.dart';
-import 'package:openwrt_manager/OpenWRT/Model/AuthenticateReply.dart';
-import 'package:openwrt_manager/OpenWRT/Model/CommandReplyBase.dart';
-import 'package:openwrt_manager/OpenWRT/Model/ReplyBase.dart';
+import 'package:openwrt_manager/OpenWrt/Model/AuthenticateReply.dart';
+import 'package:openwrt_manager/OpenWrt/Model/CommandReplyBase.dart';
+import 'package:openwrt_manager/OpenWrt/Model/ReplyBase.dart';
+import 'package:openwrt_manager/OpenWrt/OpenWrtClient.dart';
 import 'package:openwrt_manager/Overview/OverviewItemManager.dart';
 import 'package:openwrt_manager/Page/Form/OverviewConfigForm.dart';
 import 'package:openwrt_manager/settingsUtil.dart';
+import 'package:flutter/services.dart';
 
 abstract class OverviewWidgetBase extends StatefulWidget {
   final Device device;
   final bool loading;
-  final AuthenticateReply authenticationStatus;
-  final List<CommandReplyBase> replies;
-  final OverviewItem item;
-  final String overviewItemGuid;
+  final AuthenticateReply? authenticationStatus;
+  final List<CommandReplyBase>? replies;
+  final OverviewItem? item;
+  final String? overviewItemGuid;
   final Function doOverviewRefresh;
   OverviewWidgetBase(this.device, this.loading, this.authenticationStatus,
       this.replies, this.item, this.overviewItemGuid, this.doOverviewRefresh);
 
-  List<Type> get replyTypes => item.commands.map((x) => x.runtimeType).toList();
+  List<Type> get replyTypes =>
+      item!.commands.map((x) => x.runtimeType).toList();
 }
 
 abstract class OverviewWidgetBaseState extends State<OverviewWidgetBase> {
   static const iconSize = 20.0;
 
+  String? titleSuffix;
+    
   @override
-  Widget build(BuildContext context) {    
+  Widget build(BuildContext context) {
+    var myWidget = getWidget(); // evalute widget before drawing the base layout
     return Container(
       margin: EdgeInsets.all(5),
       padding: EdgeInsets.only(bottom: 5),
@@ -96,9 +101,9 @@ abstract class OverviewWidgetBaseState extends State<OverviewWidgetBase> {
                         ),
                         Expanded(child: Container()),
                         Text(
-                          "${widget.device.displayName} ${widget.item.displayName}",
-                          style: TextStyle(fontSize: 14),
+                          "${widget.device.displayName} ${widget.item!.displayName}",
                         ),
+                        Text(titleSuffix ?? ""),
                         Expanded(child: Container()),
                         Container(
                           width: 60,
@@ -141,9 +146,7 @@ abstract class OverviewWidgetBaseState extends State<OverviewWidgetBase> {
                     )))
           ],
         ),
-        Container(
-            decoration: BoxDecoration(),            
-            child: getWidget())
+        Container(decoration: BoxDecoration(), child: myWidget)
       ]),
     );
   }
@@ -151,7 +154,7 @@ abstract class OverviewWidgetBaseState extends State<OverviewWidgetBase> {
   @protected
   List<Widget> getRows(Map<dynamic, dynamic> data,
       {double firstRowWidth = 120}) {
-    var lst = List<Widget>();
+    List<Widget> lst = [];
     for (var k in data.keys) {
       var r = Container(
           padding: EdgeInsets.all(2),
@@ -168,7 +171,7 @@ abstract class OverviewWidgetBaseState extends State<OverviewWidgetBase> {
   }
 
   @protected
-  List<dynamic> oldData;
+  List<dynamic>? oldData;
 
   @protected
   bool expanded = false;
@@ -181,11 +184,11 @@ abstract class OverviewWidgetBaseState extends State<OverviewWidgetBase> {
     return false;
   }
 
-  List<dynamic> get data {
+  List<dynamic>? get data {
     var rp =
         widget.replies?.where((x) => widget.replyTypes.contains(x.runtimeType));
-    if (rp != null && rp.length > 0) {      
-      var orderdList = List<dynamic>();
+    if (rp != null && rp.length > 0) {
+      List<dynamic> orderdList = [];
       for (var r in widget
           .replyTypes) // pass reply data in the order of replyTypes property
       {
@@ -195,9 +198,7 @@ abstract class OverviewWidgetBaseState extends State<OverviewWidgetBase> {
 
       try {
         oldData = orderdList.map((x) => x.data["result"]).toList();
-      } catch (e) {
-        
-      }
+      } catch (e) {}
       return oldData;
     }
     return oldData;
@@ -208,49 +209,71 @@ abstract class OverviewWidgetBaseState extends State<OverviewWidgetBase> {
   @protected
   bool badReplyData = false;
 
-  int lastReplyTimeStamp = 0;
+  int? lastReplyTimeStamp = 0;
 
   bool get noDataAtAll {
     return oldData == null && data == null;
   }
 
-  bool _gotNewData;
+  bool? _gotNewData;
 
   @protected
-  bool get gotNewData {    
+  bool? get gotNewData {
     return _gotNewData;
   }
 
-  int get currentReplyTimeStamp
-  {
-    if (widget.replies == null || widget.replies.length == 0)
-      return 0;
-    return widget.replies.first.replyTimeStamp;
+  int? get currentReplyTimeStamp {
+    if (widget.replies == null || widget.replies!.length == 0) return 0;
+    return widget.replies!.first.replyTimeStamp;
   }
 
   Widget _getMyWidget() {
-    try {      
-      _gotNewData = currentReplyTimeStamp > 0 && currentReplyTimeStamp != lastReplyTimeStamp;
+    try {
+      _gotNewData = currentReplyTimeStamp! > 0 &&
+          currentReplyTimeStamp != lastReplyTimeStamp;
       var w = myWidget;
       lastReplyTimeStamp = currentReplyTimeStamp;
       _gotNewData = false;
       badReplyData = false;
       return w;
-    } catch (e) {
-      badReplyData = true;      
-      return Text("Error parsing reply from device");
+    } catch (e, stackTrace) {
+      badReplyData = true;
+      return generateErrorText(
+          e, stackTrace, "Error parsing reply from device");
     }
+  }
+
+  Column generateErrorText(e, StackTrace stackTrace, String text) {
+    return Column(children: [
+      Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [Expanded(child: Text(text))]),
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        ElevatedButton(
+            child: Text("Copy Debug Trace To Clipboard"),
+            onPressed: () async {
+              Clipboard.setData(ClipboardData(
+                  text: e.toString() +
+                      "\n" +
+                      stackTrace.toString() +
+                      "\n" +
+                      OpenWrtClient.lastJSONRequest +
+                      "\n" +
+                      OpenWrtClient.lastJSONResponse));
+            })
+      ]),
+    ]);
   }
 
   Widget getWidget() {
     var errorText = "";
-    if (widget.replies != null && widget.replies.length > 0) {
-      if (widget.replies.any((x) => x.status == ReplyStatus.NotFound))
+    if (widget.replies != null && widget.replies!.length > 0) {
+      if (widget.replies!.any((x) => x.status == ReplyStatus.NotFound))
         errorText =
-            "Authentication is successful but command not found on device.\nplease verify your device OpenWRT version is supported by this app.";
-      else if (widget.replies.any((x) => x.status != ReplyStatus.Ok))
+            "Authentication is successful but command not found on device.\nplease verify your device OpenWrt version is supported by this app.";
+      else if (widget.replies!.any((x) => x.status != ReplyStatus.Ok))
         errorText =
-            "Authentication is successful but error response returned from device.\nplease verify your device OpenWRT version is supported by this app.";
+            "Authentication is successful but error response returned from device.\nplease verify your device OpenWrt version is supported by this app.";
     }
     if (errorText == "") {
       switch (widget.authenticationStatus?.status) {
@@ -264,7 +287,7 @@ abstract class OverviewWidgetBaseState extends State<OverviewWidgetBase> {
           errorText = "Error";
           break;
         case ReplyStatus.HandshakeError:
-          errorText = "Secure connection error , bad certificate ?";
+          errorText = "Secure connection error , bad certificate , if device's certificate changed from last used one - resave device on devices form";
           break;
         case ReplyStatus.NotFound:
           errorText =
@@ -273,7 +296,7 @@ abstract class OverviewWidgetBaseState extends State<OverviewWidgetBase> {
         default:
       }
     }
-    
+
     return Column(children: <Widget>[
       Visibility(
           visible: !(noDataAtAll),
@@ -296,17 +319,17 @@ abstract class OverviewWidgetBaseState extends State<OverviewWidgetBase> {
         !badReplyData);
   }
 
-  Map<String, dynamic> get configData {
-    return SettingsUtil.overviewConfig.data[widget.overviewItemGuid];
+  Map<String?, dynamic>? get configData {
+    return SettingsUtil.overviewConfig!.data![widget.overviewItemGuid];
   }
 
   @protected
-  List<Map<String, dynamic>> get configItems {
+  List<Map<String, dynamic>>? get configItems {
     return null;
   }
 
   void showConfig() {
-    if (configItems == null || configItems.length == 0)
+    if (configItems == null || configItems!.length == 0)
       showConfigAlert();
     else
       Dialogs.showMyDialog(
