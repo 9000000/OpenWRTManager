@@ -25,17 +25,22 @@ class MyApp extends StatelessWidget {
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
     ]);
+
     return FeatureDiscovery(
-      child: MaterialApp(
-        title: 'OpenWrt Manager',
-        theme: Provider.of<ThemeChangeNotifier>(context, listen: true).currentTheme,
-        home: MainPage(),
-        builder: (context, child) {          
-          return MediaQuery(
-            child: child!,
-            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(1)),
-          );
-        },
+      child: SafeArea(
+        top: false,
+        bottom: true,
+        child: MaterialApp(
+          title: 'OpenWrt Manager',
+          theme: Provider.of<ThemeChangeNotifier>(context, listen: true).currentTheme,
+          home: MainPage(),
+          builder: (context, child) {
+            return MediaQuery(
+              child: child!,
+              data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(1)),
+            );
+          },
+        ),
       ),
     );
   }
